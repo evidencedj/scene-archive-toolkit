@@ -1,29 +1,30 @@
 #!/usr/bin/env bash
 #
-# wait_for_processor.sh  v2.0.0
+# wait_for_processor.sh  v2.1.0
 #
-# Wartet, bis kein Lauf des Incoming Processors mehr aktiv ist. Gedacht fuer
-# Backups oder ein geplantes Herunterfahren, damit nicht mitten in einem Lauf
-# gesichert oder ausgeschaltet wird.
+# Waits until no Incoming Processor run is active any more. Meant for
+# backups or a scheduled shutdown, so that nothing is backed up or powered
+# off in the middle of a run.
 #
-# VERSIONSHISTORIE
-#   v1.0  Fassung des Originalsetups: wartet im rescene-worker Container, nach
-#         dem Zeitlimit ein einziges SIGTERM (sauberes Beenden nach der aktuellen
-#         Release), danach bis zu 15 Minuten Nachfrist.
-#   v2.0.0  2026-11-01  Portable Edition (Toolkit 1.1.0). Erkennt einen laufenden
-#           Processor ueber seine Sperrdatei im Archiv (.incoming_processor.lock)
-#           statt ueber einen festen Container Namen, das SIGTERM geht an den
-#           Container, in dem incoming_processor.py laeuft. Einstellungen aus
-#           pipeline.env.
+# VERSION HISTORY
+#   v1.0  Original setup version: waits inside a fixed container, after the
+#         time limit a single SIGTERM (clean stop after the current release),
+#         then up to 15 more minutes of grace.
+#   v2.0.0  2026-11-01  Portable edition (toolkit 1.1.0). Detects a running
+#           processor through its lock file in the archive
+#           (.incoming_processor.lock) instead of a fixed container name; the
+#           SIGTERM goes to the container that runs incoming_processor.py.
+#           Settings from pipeline.env.
+#   v2.1.0  2026-11-01  All messages translated to English.
 #
-# AUFRUF:
-#   ./wait_for_processor.sh [MAX_WARTEN_MINUTEN]      (Standard 120)
+# USAGE:
+#   ./wait_for_processor.sh [MAX_WAIT_MINUTES]      (default 120)
 #
-# EXIT CODE: 0 = nichts laeuft mehr, 1 = Processor laeuft noch
+# EXIT CODE: 0 = nothing is running any more, 1 = processor is still running
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [ -f "$HERE/pipeline.env" ] && . "$HERE/pipeline.env"
-: "${ARCHIVE:?ARCHIVE ist nicht gesetzt (pipeline.env anlegen)}"
+: "${ARCHIVE:?ARCHIVE is not set (create pipeline.env)}"
 
 MAX_WAIT_MIN="${1:-120}"
 GRACE_MIN=15
@@ -31,7 +32,7 @@ LOCKFILE="$ARCHIVE/.incoming_processor.lock"
 
 running() {
   [ -e "$LOCKFILE" ] || return 1
-  # Sperre nicht bekommen = der Processor haelt sie = er laeuft
+  # cannot get the lock = the processor holds it = it is running
   ( exec 9<"$LOCKFILE"; flock -n 9 ) && return 1 || return 0
 }
 
@@ -42,11 +43,11 @@ term_processor() {
 }
 
 if ! running; then
-  echo "Kein Processor Lauf aktiv."
+  echo "No processor run active."
   exit 0
 fi
 
-echo "Processor laeuft, warte bis zu $MAX_WAIT_MIN Minuten..."
+echo "Processor is running, waiting up to $MAX_WAIT_MIN minutes..."
 waited=0
 while running && [ "$waited" -lt "$MAX_WAIT_MIN" ]; do
   sleep 60
@@ -54,7 +55,7 @@ while running && [ "$waited" -lt "$MAX_WAIT_MIN" ]; do
 done
 
 if running; then
-  echo "Zeitlimit erreicht, sende SIGTERM (sauberes Beenden nach der aktuellen Release)..."
+  echo "Time limit reached, sending SIGTERM (clean stop after the current release)..."
   term_processor
   waited=0
   while running && [ "$waited" -lt "$GRACE_MIN" ]; do
@@ -64,8 +65,8 @@ if running; then
 fi
 
 if running; then
-  echo "Processor laeuft immer noch."
+  echo "Processor is still running."
   exit 1
 fi
-echo "Processor ist fertig."
+echo "Processor is finished."
 exit 0

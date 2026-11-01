@@ -15,30 +15,29 @@ Usage:
   python3 indexer.py --status incomplete,scenereleases_nosrr,dupes,scenereleases
                                       # also index other status folders
 
-VERSIONSHISTORIE
+VERSION HISTORY
   1.0  first release of the ArchiveDB indexer.
-  1.1  2026-09-24  gdrive_folder_id-Spalte ergaenzt (Migration in open_db()),
-                   fuer den "In Google Drive oeffnen"-Button in release.html.
-  1.2  2026-10-01  date_added-Spalte ergaenzt: wird nur beim allerersten
-                   INSERT eines Release-Ordners gesetzt (nie bei einem
-                   Update), aus der mtime des Ordners abgeleitet. Fuer
-                   bereits indexierte Bestandsreleases ohne date_added
-                   (NULL) laeuft einmalig ein Backfill ueber
-                   backfill_date_added(), ebenfalls aus der Ordner-mtime.
-  1.5  2026-10-21  Neue Ordnerstruktur (incoming_processor.py v3.0): Standard
-                   indexiert jetzt zwei Quellen, "scenereleases" (Ordner mit
-                   srrDB geprueften Releases, auf einer Kopie heisst
-                   der Zielordner weiter so) und "scenereleases_nosrr". Der
-                   Status steht weiter in releases.status. Gibt es einen Namen
-                   in beiden Ordnern, gewinnt srr: ein nosrr Eintrag wird dann
-                   nicht angelegt, und ein vorhandener Eintrag wird zu srr
-                   (die Reihenfolge der Status Ordner ist dafuer wichtig).
-  1.6  2026-11-01  Portable Edition: Die beiden Quellordner sind per Umgebungs-
-                   variable einstellbar (SRR_FOLDER, Standard "scenereleases_srr";
-                   NOSRR_FOLDER, Standard "scenereleases_nosrr"). Die Status
-                   Namen in der Datenbank bleiben "scenereleases" (= srr) und
-                   "scenereleases_nosrr", damit bestehende Datenbanken und die
-                   Filter in der Oberflaeche unveraendert weiterlaufen.
+  1.1  2026-09-24  Added gdrive_folder_id column (migration in open_db()),
+                   for the "open in Google Drive" button in release.html.
+                   (The button was removed again later, the column stays unused.)
+  1.2  2026-10-01  Added date_added column: set only on the very first
+                   INSERT of a release folder (never on an update), derived
+                   from the folder mtime. Releases that were indexed before
+                   and have no date_added (NULL) get a one-time backfill via
+                   backfill_date_added(), also from the folder mtime.
+  1.5  2026-10-21  New folder structure (incoming_processor.py v3.0): by
+                   default two sources are indexed, "scenereleases" (folder
+                   with srrDB verified releases) and "scenereleases_nosrr".
+                   The status stays in releases.status. If a name exists in
+                   both folders, srr wins: a nosrr entry is not created, and
+                   an existing entry becomes srr (the order of the status
+                   folders matters for this).
+  1.6  2026-11-01  Portable edition: the two source folders can be set via
+                   environment variables (SRR_FOLDER, default "scenereleases_srr";
+                   NOSRR_FOLDER, default "scenereleases_nosrr"). The status
+                   names in the database stay "scenereleases" (= srr) and
+                   "scenereleases_nosrr", so existing databases and the
+                   filters in the web UI keep working unchanged.
 """
 
 import os
@@ -51,15 +50,15 @@ from collections import Counter
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
     import genre_stats
-except Exception:  # Genre ist optional, der Indexer darf daran nie scheitern
+except Exception:  # genre is optional, the indexer must never fail because of it
     genre_stats = None
 
 ARCHIVE_ROOT = os.environ.get("ARCHIVE_ROOT", "/archive")
 DB_PATH = os.environ.get("DB_PATH", "/data/archive.db")
 SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "schema.sql")
 
-# Ordnernamen unter ARCHIVE_ROOT. Der Status in der DB bleibt "scenereleases"
-# (srr) bzw. "scenereleases_nosrr", der echte Ordner ist hier einstellbar.
+# Folder names under ARCHIVE_ROOT. The status in the DB stays "scenereleases"
+# (srr) or "scenereleases_nosrr", the real folder is configurable here.
 SRR_FOLDER = os.environ.get("SRR_FOLDER", "scenereleases_srr").strip().strip("/")
 NOSRR_FOLDER = os.environ.get("NOSRR_FOLDER", "scenereleases_nosrr").strip().strip("/")
 STATUS_FOLDERS = {"scenereleases": SRR_FOLDER, "scenereleases_nosrr": NOSRR_FOLDER}
@@ -68,7 +67,7 @@ STATUS_FOLDERS = {"scenereleases": SRR_FOLDER, "scenereleases_nosrr": NOSRR_FOLD
 def status_dir(status):
     return os.path.join(ARCHIVE_ROOT, STATUS_FOLDERS.get(status, status))
 
-DEFAULT_STATUSES = ["scenereleases", "scenereleases_nosrr"]   # srr zuerst: srr gewinnt bei gleichem Namen
+DEFAULT_STATUSES = ["scenereleases", "scenereleases_nosrr"]   # srr first: srr wins when the name is the same
 
 MEDIA_EXTENSIONS = {".mp3", ".flac", ".ogg", ".m4a", ".wav", ".ape"}
 COVER_EXTENSIONS = {".jpg", ".jpeg", ".png"}
@@ -392,12 +391,12 @@ def open_db():
 
 def folder_added_date(release_path):
     """
-    Beste verfuegbare Naeherung dafuer, wann ein Release-Ordner in den
-    Bestand kam: die mtime des Ordners selbst. Eine echte Birth-Time
-    (stat -c %w) waere praeziser, ist aber je nach Dateisystem/Mount
-    nicht zuverlaessig verfuegbar, mtime ist der robuste Standard.
-    Gibt None zurueck, wenn der Ordner (z.B. durch eine Race Condition
-    beim Scan) nicht mehr existiert.
+    Best available approximation of when a release folder entered the
+    archive: the mtime of the folder itself. A real birth time
+    (stat -c %w) would be more precise, but depending on the filesystem or
+    mount it is not reliably available, so mtime is the robust default.
+    Returns None if the folder no longer exists (e.g. because of a race
+    condition during the scan).
     """
     try:
         ts = os.path.getmtime(release_path)
@@ -408,10 +407,10 @@ def folder_added_date(release_path):
 
 def backfill_date_added(con):
     """
-    Einmaliger Nachtrag fuer Releases, die schon vor Einfuehrung der
-    date_added-Spalte indexiert wurden (dort steht aktuell NULL). Holt
-    pro betroffenem Release die Ordner-mtime nach. Nach dem ersten Lauf
-    bleibt die Abfrage leer und die Funktion ist ein billiges No-Op.
+    One-time backfill for releases that were indexed before the
+    date_added column existed (currently NULL). Fetches the folder mtime
+    for each affected release. After the first run the query stays empty
+    and the function is a cheap no-op.
     """
     rows = con.execute(
         "SELECT id, status, folder_name FROM releases WHERE date_added IS NULL"
@@ -425,18 +424,17 @@ def backfill_date_added(con):
             filled += 1
     if filled:
         con.commit()
-        print(f"  Backfill: date_added fuer {filled} Bestandsrelease(s) aus Ordner-mtime nachgetragen")
+        print(f"  Backfill: date_added filled in for {filled} existing release(s) from the folder mtime")
     return filled
 
 
 def read_release_genre(release_path):
     """
-    Haeufigstes Genre eines Releases aus den ID3 Tags seiner MP3s.
-    Gibt (genre, genre_key) zurueck, beides None wenn nichts getaggt ist
-    oder genre_stats nicht verfuegbar ist. genre ist die haeufigste
-    Originalschreibweise, genre_key die normalisierte Form, ueber die
-    spaeter gefiltert und gezaehlt wird (damit "Hip-Hop" und "Hip Hop"
-    als ein Genre zaehlen).
+    Most frequent genre of a release from the ID3 tags of its MP3s.
+    Returns (genre, genre_key), both None if nothing is tagged or
+    genre_stats is not available. genre is the most frequent original
+    spelling, genre_key the normalised form that is used later for
+    filtering and counting (so "Hip-Hop" and "Hip Hop" count as one genre).
     """
     if genre_stats is None:
         return None, None
@@ -471,15 +469,15 @@ def upsert_release(con, folder_name, status, release_path):
                       (folder_name,))
     row = cur.fetchone()
 
-    # srr gewinnt: ein Name, der schon als srr Release indexiert ist, wird
-    # von der nosrr Kopie nicht ueberschrieben.
+    # srr wins: a name that is already indexed as an srr release is not
+    # overwritten by the nosrr copy.
     if row and status == "scenereleases_nosrr":
         cur_status = con.execute("SELECT status FROM releases WHERE id = ?", (row[0],)).fetchone()[0]
         if cur_status == "scenereleases":
             return
 
-    # Genre nur neu lesen, wenn der Ordner neu ist oder seine mtime sich
-    # geaendert hat. Sonst den gespeicherten Wert behalten.
+    # Only re-read the genre if the folder is new or its mtime changed.
+    # Otherwise keep the stored value.
     try:
         folder_mtime = int(os.stat(release_path).st_mtime)
     except OSError:
@@ -490,9 +488,9 @@ def upsert_release(con, folder_name, status, release_path):
         genre, genre_key = read_release_genre(release_path)
 
     if row:
-        # date_added bewusst NICHT im UPDATE: das Feld wird nur einmal,
-        # beim allerersten INSERT eines Ordners, gesetzt und danach nie
-        # wieder angefasst, auch nicht bei taeglichen Reindex-Laeufen.
+        # date_added is deliberately NOT part of the UPDATE: the field is
+        # set only once, on the very first INSERT of a folder, and never
+        # touched again, not even by daily reindex runs.
         release_id = row[0]
         con.execute("""
             UPDATE releases SET status=?, artist=?, title=?, year=?, release_group=?,

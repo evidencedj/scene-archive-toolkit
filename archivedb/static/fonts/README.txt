@@ -1,2 +1,2 @@
-DejaVuSansMono.ttf: DejaVu Fonts, freie Lizenz (Bitstream Vera License / Public Domain Anteile),
-https://dejavu-fonts.github.io/ . Frei nutzbar und weitergebbar.
+DejaVuSansMono.ttf: DejaVu Fonts, free license (Bitstream Vera License / public domain parts),
+https://dejavu-fonts.github.io/ . Free to use and redistribute.

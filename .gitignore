@@ -1,9 +1,9 @@
-# Geheimnisse und lokale Konfiguration
+# Secrets and local configuration
 .env
 *.env
 !.env.example
 
-# Laufzeitdaten
+# Runtime data
 processor/logs/*
 !processor/logs/.gitkeep
 *.log

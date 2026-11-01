@@ -1,15 +1,15 @@
 {#
-  search.html: Suchseite / Ergebnisliste
+  search.html: search page / result list
 
-  VERSIONSHISTORIE
-    1.0  Urspruengliche Suchseite mit Filtern, Sortierung, Pagination.
-    1.1  Added-Spalte, A-Z-Sprungleiste, Genre-Filter.
-    1.4  2026-10-08  Autofokus im Suchfeld beim Laden (nur mit feinem
-                     Zeiger, nicht auf Touch), vorhandener Suchtext wird
-                     markiert und beim Tippen ersetzt.
-    1.5  2026-10-21  Quelle-Filter (srrDB / ohne srrDB) und Badge "no srr"
-                     in der Trefferliste. Der Filter wird in allen Links
-                     (Sortierung, A-Z, Pagination) mitgefuehrt.
+  VERSION HISTORY
+    1.0  Original search page with filters, sorting, pagination.
+    1.1  Added column, A-Z jump bar, genre filter.
+    1.4  2026-10-08  Autofocus in the search box on load (only with a fine
+                     pointer, not on touch), existing search text is
+                     selected and replaced when typing.
+    1.5  2026-10-21  Source filter (srrDB / without srrDB) and "no srr" badge
+                     in the result list. The filter is carried in all links
+                     (sorting, A-Z, pagination).
 -#}
 {% extends "base.html" %}
 {% block title %}Search — Scene Archive{% endblock %}
@@ -134,9 +134,9 @@
 </div>
 
 <script>
-// Cursor landet beim Laden im Suchfeld, vorhandener Text ist markiert.
-// preventScroll erhaelt den A-Z-Sprung (#release-ID). Auf Touch-Geraeten
-// kein Autofokus, damit nicht die Bildschirmtastatur aufklappt.
+// On load the cursor goes into the search box, existing text is selected.
+// preventScroll keeps the A-Z jump (#release-ID) working. No autofocus on
+// touch devices, so the on-screen keyboard does not pop up.
 document.addEventListener('DOMContentLoaded', function () {
   if (!window.matchMedia('(pointer: fine)').matches) return;
   var input = document.querySelector('input[name="q"]');

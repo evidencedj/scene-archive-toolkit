@@ -530,7 +530,7 @@ VERSION HISTORY (bump on every change so you always know what's current):
         not just trimmed. build_discord_messages() now tracks a
         running total as it adds fields and, once DISCORD_EMBED_TOTAL_CAP
         would be exceeded, stops adding further per-destination fields
-        and appends one final "weitere Kategorien nicht angezeigt"
+        and appends one final "not shown" note
         field instead, naming the skipped destinations and their
         counts -- the report always gets posted, worst case with fewer
         of the long per-release lists and a pointer to the logfile for
@@ -579,7 +579,7 @@ VERSION HISTORY (bump on every change so you always know what's current):
         incoming_processor_<mode>_<ts>.log and incoming_results_<mode>_<ts>.log.
         SAFETY CHECK at start: the run is refused if scenereleases still
         contains real folders or scenereleases_srr is missing, i.e. before
-        migrate_to_srr_structure.py has been run. Symlinks can only be
+        migrate_to_v3_layout.py has been run. Symlinks can only be
         created where the archive is a local folder (the file server since the
         move of rescene-worker), not over CIFS.
         Maintenance: sync_scene_links.py repairs links (missing, dangling,
@@ -598,6 +598,11 @@ VERSION HISTORY (bump on every change so you always know what's current):
             srrDB cookies (never needed by the code).
           - Companion tools: migrate_to_v3_layout.py (old layout -> v3
             layout, dry run by default) and sync_scene_links.py.
+
+  v3.3  Language: the Discord report and the layout check hints are now in
+        English ("Result", "Note", "release(s) processed"); the layout check
+        points to tools/migrate_to_v3_layout.py (the old text named a
+        script that does not exist). No change in behaviour.
 
 Processes all folders inside INCOMING_DIR using a multi-stage pipeline:
 
@@ -705,7 +710,7 @@ def _env_flag(name, default=False):
 DRY_RUN       = _env_flag("DRY_RUN") or ("--dry-run" in sys.argv)   # True = preview only
 REQUEST_DELAY = float(os.environ.get("REQUEST_DELAY", "1.0"))       # seconds between srrDB API calls
 
-SCRIPT_VERSION = "3.2"  # ← single source of truth for the startup banner;
+SCRIPT_VERSION = "3.3"  # ← single source of truth for the startup banner;
                           #   bump this alongside the version-history entry
                           #   at the top of the file so they can never drift
                           #   apart again (see v2.19 below)
@@ -2468,13 +2473,13 @@ def check_layout():
     v3.0 safety check, run once at the start of a live run: scenereleases
     must contain ONLY symlinks and scenereleases_srr must exist. Otherwise
     the archive still has the old layout (real releases in scenereleases)
-    and migrate_to_srr_structure.py has to run first, because moving a
+    and migrate_to_v3_layout.py has to run first, because moving a
     release into scenereleases_srr while scenereleases still holds real
     folders would mix both layouts. Returns an error text or None.
     """
     if not os.path.isdir(SRR_DIR):
         return (f"{SRR_DIR} does not exist: the archive still has the old layout. "
-                f"Run migrate_to_srr_structure.py first.")
+                f"Run tools/migrate_to_v3_layout.py first (see docs/MIGRATION.md).")
     if os.path.isdir(SCENE_DIR):
         try:
             with os.scandir(SCENE_DIR) as it:
@@ -2484,7 +2489,7 @@ def check_layout():
                     if entry.is_dir(follow_symlinks=False):
                         return (f"{SCENE_DIR} contains a real folder ({entry.name}): "
                                 f"scenereleases must hold only symlinks. "
-                                f"Run migrate_to_srr_structure.py / sync_scene_links.py first.")
+                                f"Run tools/migrate_to_v3_layout.py / sync_scene_links.py first (see docs/MIGRATION.md).")
         except OSError as e:
             return f"cannot read {SCENE_DIR}: {e}"
     return None
@@ -3210,10 +3215,10 @@ def build_discord_messages():
                        for k in ordered_keys]
     overview = "```\n" + "\n".join(overview_lines) + "\n```" if overview_lines else "```\n(nothing processed)\n```"
 
-    title = f"Incoming Processor — {total} Release(s) verarbeitet [{mode}]"
+    title = f"Incoming Processor — {total} release(s) processed [{mode}]"
     footer_text = f"scene-processor · {LOGFILE.rsplit('/', 1)[-1]}"
 
-    fields = [{"name": "Ergebnis", "value": overview, "inline": False}]
+    fields = [{"name": "Result", "value": overview, "inline": False}]
     # v2.32: track the running total ourselves (title + every field's
     # name+value + footer) against DISCORD_EMBED_TOTAL_CAP, since that is
     # Discord's real limit for the embed AS A WHOLE, separate from (and
@@ -3226,7 +3231,7 @@ def build_discord_messages():
         emoji = _DISCORD_DEST_EMOJI.get(dest, "•")
         name = f"{emoji} {dest} ({len(entries)})"
         value = _discord_field_value(entries)
-        # 24, not 25: always leave room for the "weitere Kategorien"
+        # 24, not 25: always leave room for the "not shown"
         # field below if we end up needing it.
         if len(fields) >= 24 or running_total + len(name) + len(value) > DISCORD_EMBED_TOTAL_CAP:
             skipped_dests.append(dest)
@@ -3235,12 +3240,12 @@ def build_discord_messages():
         running_total += len(name) + len(value)
 
     if skipped_dests:
-        note = ("Nicht mehr angezeigt (Embed-Limit erreicht): " +
+        note = ("Not shown any more (embed limit reached): " +
                 ", ".join(f"{d} ({len(grouped[d])})" for d in skipped_dests) +
-                f" — Details im Logfile {LOGFILE.rsplit('/', 1)[-1]}")
+                f" — details in log file {LOGFILE.rsplit('/', 1)[-1]}")
         if len(note) > 1024:
-            note = note[:1000].rsplit(",", 1)[0] + ", ... — Details im Logfile"
-        note_field = {"name": "⚠️ Hinweis", "value": note, "inline": False}
+            note = note[:1000].rsplit(",", 1)[0] + ", ... — details in log file"
+        note_field = {"name": "⚠️ Note", "value": note, "inline": False}
         # Drop already-added fields from the end if needed to make room —
         # better to show fewer full lists than to risk a second HTTP 400.
         while fields and running_total + len(note_field["name"]) + len(note_field["value"]) > DISCORD_EMBED_TOTAL_CAP and len(fields) > 1:

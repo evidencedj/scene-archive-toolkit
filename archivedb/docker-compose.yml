@@ -1,9 +1,9 @@
 # ArchiveDB docker-compose.yml
 #
-# VERSIONSHISTORIE
-#   1.0  2026-11-01  Portable Edition: alle Einstellungen kommen aus der Datei
-#                    .env (Vorlage: .env.example), keine festen Pfade oder
-#                    Adressen mehr im Compose File.
+# VERSION HISTORY
+#   1.0  2026-11-01  Portable edition: all settings come from the .env file
+#                    (template: .env.example), no fixed paths or addresses
+#                    in the compose file any more.
 
 services:
   archivedb:
@@ -13,20 +13,20 @@ services:
     ports:
       - "${ARCHIVEDB_PORT:-8000}:8000"
     environment:
-      # Ordnernamen unter dem Archiv Wurzelordner (siehe Volume unten)
+      # Folder names below the archive root (see volume below)
       - SRR_FOLDER=${SRR_FOLDER:-scenereleases_srr}
       - NOSRR_FOLDER=${NOSRR_FOLDER:-scenereleases_nosrr}
-      # Optional: Link "Open in Storagebox" auf der Detailseite. Leer = kein Button.
+      # Optional: "Open in Storagebox" link on the detail page. Empty = no button.
       - FILES_BASE_URL=${FILES_BASE_URL:-}
       - FILES_FOLDER=${FILES_FOLDER:-scenereleases_srr}
       - FILES_FOLDER_NOSRR=${FILES_FOLDER_NOSRR:-scenereleases_nosrr}
-      # Optional: Windows Freigabe fuer "Open in Explorer". Leer = kein Button.
+      # Optional: Windows share for "Open in Explorer". Empty = no button.
       - UNC_BASE_PATH=${UNC_BASE_PATH:-}
     volumes:
-      # Dein Archiv Wurzelordner (enthaelt scenereleases_srr und
-      # scenereleases_nosrr), nur lesend.
-      - ${ARCHIVE_PATH:?ARCHIVE_PATH in .env setzen}:/archive:ro
-      # Die SQLite Datenbank bleibt ueber Neustarts und Rebuilds erhalten.
+      # Your archive root (contains scenereleases_srr and
+      # scenereleases_nosrr), read only.
+      - ${ARCHIVE_PATH:?set ARCHIVE_PATH in .env}:/archive:ro
+      # The SQLite database survives restarts and rebuilds.
       - archivedb_data:/data
 
 volumes:

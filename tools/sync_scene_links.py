@@ -2,36 +2,37 @@
 """
 sync_scene_links.py  v1.0.0
 
-Haelt den Ordner "scenereleases" (nur relative Symlinks) im Gleichklang mit den
-beiden echten Ordnern "scenereleases_srr" und "scenereleases_nosrr".
+Keeps the folder "scenereleases" (relative symlinks only) in sync with the
+two real folders "scenereleases_srr" and "scenereleases_nosrr".
 
-VERSIONSHISTORIE
-  1.0.0  2026-11-01  Erste Fassung fuer das Toolkit. Standard ist ein Probelauf,
-                     erst mit --apply wird etwas geaendert.
+VERSION HISTORY
+  1.0.0  2026-11-01  First version for the toolkit. Default is a dry run,
+                     nothing is changed without --apply.
+  1.1.0  2026-11-01  Output and comments translated to English.
 
-Was geprueft wird:
-  - fehlender Link              -> wird angelegt (../scenereleases_srr/<Name>)
-  - Link mit falschem Ziel      -> wird korrigiert
-  - Link ohne Ziel (haengend)   -> wird entfernt (nur der Link, nie ein Ordner)
-  - echter Ordner in scenereleases -> nur gemeldet, nie angefasst
-  Gibt es einen Namen in beiden echten Ordnern, gewinnt scenereleases_srr.
-  Ordner, deren Name mit "_" beginnt, werden ignoriert.
+What is checked:
+  - missing link                -> created (../scenereleases_srr/<name>)
+  - link with the wrong target  -> corrected
+  - link without a target (dangling) -> removed (only the link, never a folder)
+  - real folder inside scenereleases -> only reported, never touched
+  If a name exists in both real folders, scenereleases_srr wins.
+  Folders whose name starts with "_" are ignored.
 
-Aufruf:
-  python3 sync_scene_links.py --archive /pfad/zum/archiv            # Probelauf
-  python3 sync_scene_links.py --archive /pfad/zum/archiv --apply    # ausfuehren
+Usage:
+  python3 sync_scene_links.py --archive /path/to/archive            # dry run
+  python3 sync_scene_links.py --archive /path/to/archive --apply    # execute
 """
 
 import argparse
 import os
 import sys
 
-SCRIPT_VERSION = "1.0.0"
+SCRIPT_VERSION = "1.1.0"
 SRR, NOSRR, LINKS = "scenereleases_srr", "scenereleases_nosrr", "scenereleases"
 
 
 def real_dirs(path):
-    """Namen der echten Unterordner (keine Links, keine "_" Ordner)."""
+    """Names of the real subfolders (no links, no "_" folders)."""
     out = set()
     if not os.path.isdir(path):
         return out
@@ -70,7 +71,7 @@ def sync(archive, apply):
             continue
         if e.is_symlink():
             if name not in want:
-                # Ziel gibt es nicht mehr: nur den Link entfernen
+                # target is gone: remove only the link
                 print(f"  REMOVE dangling link: {name}")
                 if apply:
                     try:
@@ -112,25 +113,25 @@ def sync(archive, apply):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Symlinks in scenereleases/ abgleichen")
-    ap.add_argument("--archive", default=os.environ.get("ARCHIVE_ROOT"), help="Archiv Wurzelordner")
-    ap.add_argument("--apply", action="store_true", help="Aenderungen wirklich ausfuehren (sonst Probelauf)")
+    ap = argparse.ArgumentParser(description="Sync the symlinks in scenereleases/")
+    ap.add_argument("--archive", default=os.environ.get("ARCHIVE_ROOT"), help="archive root folder")
+    ap.add_argument("--apply", action="store_true", help="really apply the changes (otherwise dry run)")
     a = ap.parse_args()
     if not a.archive or not os.path.isdir(a.archive):
-        print("Archiv Wurzelordner fehlt oder existiert nicht (--archive oder ARCHIVE_ROOT).")
+        print("Archive root folder is missing or does not exist (--archive or ARCHIVE_ROOT).")
         return 2
     print(f"sync_scene_links v{SCRIPT_VERSION} [{'APPLY' if a.apply else 'DRY RUN'}] {a.archive}")
     r = sync(a.archive, a.apply)
-    print(f"\nangelegt: {r['created']}  korrigiert: {r['fixed']}  entfernt: {r['removed']}  "
-          f"in Ordnung: {r['ok']}  Fehler: {r['errors']}")
+    print(f"\ncreated: {r['created']}  fixed: {r['fixed']}  removed: {r['removed']}  "
+          f"ok: {r['ok']}  errors: {r['errors']}")
     if r["both"]:
-        print(f"HINWEIS: {len(r['both'])} Name(n) in srr UND nosrr (srr gewinnt): " + ", ".join(r["both"][:10]))
+        print(f"NOTE: {len(r['both'])} name(s) in srr AND nosrr (srr wins): " + ", ".join(r["both"][:10]))
     if r["real_in_links"]:
-        print(f"WARNUNG: {len(r['real_in_links'])} echter Ordner in scenereleases (nicht angefasst): "
+        print(f"WARNING: {len(r['real_in_links'])} real folder(s) in scenereleases (not touched): "
               + ", ".join(r["real_in_links"][:10]))
-        print("  -> migrate_to_v3_layout.py ausfuehren oder die Ordner von Hand verschieben.")
+        print("  -> run migrate_to_v3_layout.py or move the folders by hand.")
     if not a.apply:
-        print("\nProbelauf: nichts wurde geaendert. Mit --apply ausfuehren.")
+        print("\nDry run: nothing was changed. Run with --apply to execute.")
     return 1 if r["errors"] else 0
 
 

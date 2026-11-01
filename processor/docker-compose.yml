@@ -1,13 +1,13 @@
 # Incoming Processor docker-compose.yml
 #
-# VERSIONSHISTORIE
-#   1.0  2026-11-01  Erste Fassung fuer das Toolkit. Einstellungen kommen aus
-#                    der Datei .env (Vorlage: .env.example).
-#   1.1  2026-11-01  Build Kontext ist die Toolkit Wurzel (Image enthaelt tools/).
-#                    Neuer Ordner STATE_PATH fuer den Genre Cache der Statistik.
+# VERSION HISTORY
+#   1.0  2026-11-01  First version for the toolkit. Settings come from the
+#                    .env file (template: .env.example).
+#   1.1  2026-11-01  Build context is the toolkit root (image contains tools/).
+#                    New folder STATE_PATH for the genre cache of the statistics.
 #
-# Ein Lauf:        docker compose run --rm processor
-# Nur Vorschau:    docker compose run --rm processor python incoming_processor.py --dry-run
+# One run:         docker compose run --rm processor
+# Preview only:    docker compose run --rm processor python incoming_processor.py --dry-run
 
 services:
   processor:
@@ -16,7 +16,7 @@ services:
       dockerfile: processor/Dockerfile
     image: scene-processor:local
     container_name: scene-processor
-    # Kein Dauerbetrieb: der Container startet pro Lauf und beendet sich selbst.
+    # Not a long running service: the container starts per run and exits by itself.
     restart: "no"
     environment:
       - DRY_RUN=${DRY_RUN:-0}
@@ -26,9 +26,9 @@ services:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
       - DISCORD_SKIP_EMPTY_RUNS=${DISCORD_SKIP_EMPTY_RUNS:-1}
     volumes:
-      # Dein Archiv Wurzelordner, LOKAL eingebunden (Symlinks gehen nicht ueber SMB).
-      - ${ARCHIVE_PATH:?ARCHIVE_PATH in .env setzen}:/archive
-      # Protokolle jedes Laufs
+      # Your archive root, mounted LOCALLY (symlinks do not work over SMB).
+      - ${ARCHIVE_PATH:?set ARCHIVE_PATH in .env}:/archive
+      # Logs of every run
       - ${LOG_PATH:-./logs}:/app/logs
-      # Zwischenspeicher der Genre Statistik (bleibt zwischen den Laeufen erhalten)
+      # Genre statistics cache (kept between runs)
       - ${STATE_PATH:-./state}:/app/state

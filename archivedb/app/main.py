@@ -6,52 +6,51 @@ Read-only web frontend over the SQLite database built by indexer.py.
 Search page -> result list -> click a release -> see its files,
 mirroring the srrDB browsing flow the user asked for.
 
-VERSIONSHISTORIE
+VERSION HISTORY
   1.0  first release of the ArchiveDB web app.
-  1.1  2026-09-24  /gdrive-ids Endpunkt ergaenzt (nimmt "ID|folder_name/"
-                   Zeilen aus "rclone lsf --format ip" entgegen und traegt
-                   sie in releases.gdrive_folder_id ein), release_detail()
-                   liefert daraus eine fertige gdrive_url an das Template.
-  1.2  2026-10-01  "added"-Sortierung (date_added) ergaenzt und date_added
-                   mit in die Ergebnisliste selektiert, fuer die neue
-                   "Added"-Spalte in search.html.
-  1.3  2026-10-01  A-Z-Sprungleiste: build_alphabet_index() ermittelt pro
-                   Buchstabe (Ziffern-Ordner landen gesammelt unter "#"),
-                   auf welcher Seite/bei welcher Release-ID er unter
-                   alphabetischer Sortierung beginnt, fuer einen Klick-
-                   Sprung direkt zur passenden Zeile in search.html.
-  1.4  2026-10-06  Statistik-Seite /stats (Formate, Jahre, Zeitleiste, Top
-                   Gruppen, Top Genres, Zugang pro Monat), alles aus dem
-                   SQLite Index berechnet, jeder Eintrag ist ein Link auf die
-                   gefilterte Suche. Neuer Genre-Filter in der Suche
-                   (Parameter "genre", filtert auf releases.genre_key), das
-                   Genre steht auch auf der Detailseite.
-  1.5  2026-10-06  Fix: Balken in den Top-Listen waren unsichtbar (span ohne
-                   display:block, in base.html behoben). Jahre ausserhalb
-                   1900 bis 2035 (z.B. kaputte ID3 Tags wie "0199") werden in
-                   der Statistik ignoriert.
-  1.6  2026-10-16  "Open on Storage Box"-Button: release_detail() baut aus
-                   FILES_BASE_URL (z.B. https://files.example.org), FILES_FOLDER
-                   (Standard "scenereleases") und dem URL-kodierten folder_name
-                   die Adresse und reicht sie als box_url an release.html.
-                   Ohne FILES_BASE_URL wird kein Button angezeigt. Der
-                   Google-Drive-Button und /gdrive-ids bleiben unveraendert.
-  1.7  2026-10-21  Neue Ordnerstruktur: Quelle-Filter "src" (srr = status
-                   scenereleases, nosrr = status scenereleases_nosrr) in der
-                   Suche, Badge "no srr" in der Trefferliste, zwei Karten auf
-                   der Statistik Seite. Der Storage Box Link nimmt pro Release
-                   den passenden Ordner (FILES_FOLDER fuer srr,
-                   FILES_FOLDER_NOSRR fuer nosrr). Google Drive entfernt:
-                   /gdrive-ids und der Button sind weg, die Spalte
-                   gdrive_folder_id bleibt ungenutzt in der Datenbank.
-  1.8  2026-10-28  Button Text "Open in Storagebox" (release.html). Die Adresse
-                   zeigt jetzt direkt auf die Storage Box Oberflaeche, indem
-                   FILES_BASE_URL auf https://<account>.your-storagebox.de/index.html#
-                   gesetzt wird (docker-compose.yml). Keine Codeaenderung.
-  1.9  2026-11-01  Portable Edition: UNC_BASE_PATH hat keinen festen Standard
-                   mehr. Ist er leer, entfallen "Open in Explorer" und "Copy
-                   folder path" auf der Detailseite. FILES_FOLDER-Standard ist
-                   jetzt "scenereleases_srr". Keine Aenderung an der Datenbank.
+  1.1  2026-09-24  Added /gdrive-ids endpoint (takes "ID|folder_name/" lines
+                   from "rclone lsf --format ip" and stores them in
+                   releases.gdrive_folder_id); release_detail() hands a ready
+                   made gdrive_url to the template. (Removed again in 1.7.)
+  1.2  2026-10-01  Added "added" sorting (date_added) and selected date_added
+                   in the result list, for the new "Added" column in
+                   search.html.
+  1.3  2026-10-01  A-Z jump bar: build_alphabet_index() finds, per letter
+                   (folders starting with a digit are grouped under "#"),
+                   the page and release ID where it starts in alphabetical
+                   order, so a click jumps straight to the matching row in
+                   search.html.
+  1.4  2026-10-06  Statistics page /stats (formats, years, timeline, top
+                   groups, top genres, additions per month), all computed
+                   from the SQLite index, every entry links to the filtered
+                   search. New genre filter in the search (parameter "genre",
+                   filters on releases.genre_key); the genre is also shown on
+                   the detail page.
+  1.5  2026-10-06  Fix: bars in the top lists were invisible (span without
+                   display:block, fixed in base.html). Years outside 1900 to
+                   2035 (e.g. broken ID3 tags like "0199") are ignored in the
+                   statistics.
+  1.6  2026-10-16  "Open on Storage Box" button: release_detail() builds the
+                   address from FILES_BASE_URL (e.g. https://files.example.org),
+                   FILES_FOLDER (default "scenereleases") and the URL encoded
+                   folder_name and passes it to release.html as box_url.
+                   Without FILES_BASE_URL no button is shown.
+  1.7  2026-10-21  New folder structure: source filter "src" (srr = status
+                   scenereleases, nosrr = status scenereleases_nosrr) in the
+                   search, "no srr" badge in the result list, two cards on the
+                   statistics page. The web link uses the matching folder per
+                   release (FILES_FOLDER for srr, FILES_FOLDER_NOSRR for
+                   nosrr). Google Drive removed: /gdrive-ids and the button
+                   are gone, the column gdrive_folder_id stays unused in the
+                   database.
+  1.8  2026-10-28  Button text "Open in Storagebox" (release.html). The address
+                   can point straight at a Storage Box web UI by setting
+                   FILES_BASE_URL to https://<account>.your-storagebox.de/index.html#
+                   (docker-compose.yml). No code change.
+  1.9  2026-11-01  Portable edition: UNC_BASE_PATH has no fixed default any
+                   more. If empty, "Open in Explorer" and "Copy folder path"
+                   are hidden on the detail page. FILES_FOLDER now defaults to
+                   "scenereleases_srr". No database change.
 """
 
 import os
@@ -141,7 +140,7 @@ def build_order_by(sort, order):
     return f"{column} {direction}"
 
 
-# Quelle-Filter: URL Wert -> Wert in releases.status
+# Source filter: URL value -> value in releases.status
 SRC_STATUS = {"srr": "scenereleases", "nosrr": "scenereleases_nosrr"}
 
 PAGE_SIZE_OPTIONS = [30, 50, 100, 200]
@@ -205,9 +204,9 @@ def build_page_list(current, total_pages, window=2):
 
 def genre_display_map(con):
     """
-    {genre_key: (anzeige_name, anzahl)} ueber alle Releases mit Genre. Als
-    Anzeigename dient die im Bestand haeufigste Originalschreibweise des
-    jeweiligen normalisierten Schluessels.
+    {genre_key: (display_name, count)} over all releases with a genre. The
+    display name is the most frequent original spelling of the respective
+    normalised key.
     """
     counts = Counter()
     spellings = {}
@@ -220,7 +219,7 @@ def genre_display_map(con):
 
 
 def genre_choices(con):
-    """Genre-Auswahl fuer den Suchfilter: [(key, "Name (n)")], haeufigste zuerst."""
+    """Genre choices for the search filter: [(key, "Name (n)")], most frequent first."""
     gm = genre_display_map(con)
     ordered = sorted(gm.items(), key=lambda kv: (-kv[1][1], kv[1][0].lower()))
     return [(k, f"{name} ({n})") for k, (name, n) in ordered]
@@ -322,7 +321,7 @@ def search_page(request: Request, q: str = "", scope: str = "folder_name", year:
 
 
 def bar_rows(pairs, link_fn, limit=None):
-    """[(label, count)] -> Zeilen mit Balkenbreite in Prozent des Maximums."""
+    """[(label, count)] -> rows with bar width as a percentage of the maximum."""
     pairs = pairs[:limit] if limit else pairs
     top = max((n for _, n in pairs), default=1) or 1
     return [{"label": label, "count": n, "pct": round(100 * n / top, 1), "href": link_fn(label)}
@@ -332,9 +331,9 @@ def bar_rows(pairs, link_fn, limit=None):
 @app.get("/stats", response_class=HTMLResponse)
 def stats_page(request: Request):
     """
-    Statistik ueber den ganzen Index (alle indexierten Status-Ordner).
-    Berechnet live aus SQLite, das dauert bei einigen zehntausend Zeilen
-    Millisekunden. Jeder Eintrag verlinkt auf die gefilterte Suche.
+    Statistics over the whole index (all indexed status folders).
+    Computed live from SQLite, which takes milliseconds for a few tens of
+    thousands of rows. Every entry links to the filtered search.
     """
     con = get_db()
     one = lambda sql: con.execute(sql).fetchone()[0]
@@ -382,17 +381,17 @@ def stats_page(request: Request):
     })
 
 
-# Windows Freigabe des srr Ordners, z.B. \\\\server\\share\\scenereleases_srr
-# (Doppel-Backslashes wie in einer .env Datei). Leer = die Knoepfe
-# "Open in Explorer" und "Copy folder path" werden nicht angezeigt.
+# Windows share of the srr folder, e.g. \\\\server\\share\\scenereleases_srr
+# (double backslashes as in a .env file). Empty = the buttons
+# "Open in Explorer" and "Copy folder path" are not shown.
 UNC_BASE_PATH = os.environ.get("UNC_BASE_PATH", "").strip().rstrip("\\")
 
-# Optionaler Web Link zu den Dateien (z.B. eine Hetzner Storage Box mit
-# index.html oder ein anderer Webserver): Basisadresse und Ordner, in dem die
-# Releases liegen. FILES_BASE_URL leer = kein "Open in Storagebox"-Button.
+# Optional web link to the files (e.g. a Hetzner Storage Box with an
+# index.html, or any other web server): base address and the folder that
+# holds the releases. FILES_BASE_URL empty = no "Open in Storagebox" button.
 FILES_BASE_URL = os.environ.get("FILES_BASE_URL", "").strip().rstrip("/")
 FILES_FOLDER = os.environ.get("FILES_FOLDER", "scenereleases_srr").strip().strip("/")
-# Ordner fuer Releases ohne srrDB Treffer
+# Folder for releases without an srrDB match
 FILES_FOLDER_NOSRR = os.environ.get("FILES_FOLDER_NOSRR", "scenereleases_nosrr").strip().strip("/")
 
 METADATA_EXTENSIONS = {".nfo", ".m3u", ".sfv", ".jpg", ".jpeg", ".png", ".srr", ".srs"}
@@ -430,9 +429,9 @@ def release_detail(request: Request, release_id: int):
     if release["is_flac"] and release["container"]:
         display_format = f"{release['container']} (FLAC)"
 
-    # Alles ausser Buchstaben, Ziffern und _.-~ wird kodiert (Klammern, Kommas,
-    # #, ?, % ...), damit der Releasename den Link nicht zerlegt. Der
-    # Schraegstrich am Ende liefert bei der Box die Ordneransicht.
+    # Everything except letters, digits and _.-~ is encoded (brackets, commas,
+    # #, ?, % ...) so the release name cannot break the link. The trailing
+    # slash gives the folder view on the box.
     box_url = None
     if FILES_BASE_URL:
         box_folder = FILES_FOLDER_NOSRR if release["status"] == "scenereleases_nosrr" else FILES_FOLDER

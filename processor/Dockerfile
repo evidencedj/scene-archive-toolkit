@@ -1,17 +1,17 @@
-# Incoming Processor image (enthaelt auch die Python Werkzeuge aus tools/)
+# Incoming Processor image (also contains the Python tools from tools/)
 #
-# Build Kontext ist die Wurzel des Toolkits, nicht dieser Ordner (siehe
+# The build context is the toolkit root, not this folder (see
 # docker-compose.yml: context "..").
 #
-# VERSIONSHISTORIE
-#   1.0  2026-11-01  Erste Fassung fuer das Toolkit. Rekonstruiert aus dem
-#                    Image des Originalsetups: Python 3.12, pyrescene und ein
-#                    kleiner Patch in rescene/utility.py (locale.format wurde
-#                    in Python 3.12 entfernt und bricht sonst srr.py).
-#   1.1  2026-11-01  Build Kontext ist jetzt die Toolkit Wurzel. Das Image
-#                    enthaelt zusaetzlich tools/ (archive_stats, archive_sorter,
-#                    genre_stats, sync_scene_links, migrate_to_v3_layout), damit
-#                    die Nachtpipeline alles im selben Container ausfuehren kann.
+# VERSION HISTORY
+#   1.0  2026-11-01  First version for the toolkit. Reconstructed from the
+#                    original setup image: Python 3.12, pyrescene and a small
+#                    patch in rescene/utility.py (locale.format was removed in
+#                    Python 3.12 and would otherwise break srr.py).
+#   1.1  2026-11-01  The build context is now the toolkit root. The image also
+#                    contains tools/ (archive_stats, archive_sorter,
+#                    genre_stats, sync_scene_links, migrate_to_v3_layout) so
+#                    the nightly pipeline can run everything in one container.
 FROM python:3.12-slim
 
 WORKDIR /app

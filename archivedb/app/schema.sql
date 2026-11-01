@@ -1,5 +1,5 @@
--- Scene Archive Browser — Datenbankschema
--- Eine Zeile pro Release-Ordner, eine Zeile pro Datei darin.
+-- Scene Archive Browser: database schema
+-- One row per release folder, one row per file inside it.
 
 CREATE TABLE IF NOT EXISTS releases (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -9,26 +9,26 @@ CREATE TABLE IF NOT EXISTS releases (
     title         TEXT,
     year          TEXT,
     release_group TEXT,
-    format        TEXT,                   -- CD, VLS, FLAC, WEB, ... (fuer Statistik/Filter/Sortierung)
-    container     TEXT,                   -- Traegerformat unabhaengig von der Kodierung (CD, Vinyl, WEB, ...)
-    is_flac       INTEGER DEFAULT 0,      -- 1 wenn echte .flac Dateien im Ordner liegen
+    format        TEXT,                   -- CD, VLS, FLAC, WEB, ... (for statistics/filter/sorting)
+    container     TEXT,                   -- source medium independent of the encoding (CD, Vinyl, WEB, ...)
+    is_flac       INTEGER DEFAULT 0,      -- 1 if real .flac files are in the folder
     track_count   INTEGER DEFAULT 0,
-    total_size    INTEGER DEFAULT 0,      -- Bytes, Summe aller Dateien
-    nfo_text      TEXT,                   -- roher NFO-Inhalt, fuer Volltextsuche
-    has_cover     INTEGER DEFAULT 0,      -- 1 wenn ein .jpg/.png Cover gefunden wurde
+    total_size    INTEGER DEFAULT 0,      -- bytes, sum of all files
+    nfo_text      TEXT,                   -- raw NFO content, for full text search
+    has_cover     INTEGER DEFAULT 0,      -- 1 if a .jpg/.png cover was found
     indexed_at    TEXT NOT NULL,
-    date_added    TEXT,                   -- wann das Release in den Bestand kam, siehe indexer.py
-    gdrive_folder_id TEXT,                -- ungenutzt seit 1.7 (Google Drive entfernt), bleibt der Kompatibilitaet wegen
-    genre         TEXT,                   -- haeufigstes ID3 Genre (Originalschreibweise), NULL wenn ungetaggt
-    genre_key     TEXT,                   -- normalisiertes Genre, fuer Filter und Statistik
-    genre_mtime   INTEGER                 -- Ordner-mtime beim letzten Genre-Lesen, steuert das Neulesen
+    date_added    TEXT,                   -- when the release entered the archive, see indexer.py
+    gdrive_folder_id TEXT,                -- unused since 1.7 (Google Drive removed), kept for compatibility
+    genre         TEXT,                   -- most frequent ID3 genre (original spelling), NULL if untagged
+    genre_key     TEXT,                   -- normalised genre, for filter and statistics
+    genre_mtime   INTEGER                 -- folder mtime at the last genre read, controls re-reading
 );
 
 CREATE TABLE IF NOT EXISTS files (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     release_id    INTEGER NOT NULL REFERENCES releases(id) ON DELETE CASCADE,
     filename      TEXT NOT NULL,
-    relpath       TEXT NOT NULL,          -- relativ zum Release-Ordner (Multi-CD: "CD1/...")
+    relpath       TEXT NOT NULL,          -- relative to the release folder (multi-CD: "CD1/...")
     size          INTEGER DEFAULT 0,
     extension     TEXT
 );
@@ -40,9 +40,9 @@ CREATE INDEX IF NOT EXISTS idx_releases_status ON releases(status);
 CREATE INDEX IF NOT EXISTS idx_releases_date_added ON releases(date_added);
 CREATE INDEX IF NOT EXISTS idx_releases_genre_key ON releases(genre_key);
 
--- Volltextsuche ueber Kuenstler, Titel, Gruppe, Ordnername und NFO-Inhalt.
--- content='releases' + content_rowid='id' spiegelt die releases-Tabelle,
--- so bleibt FTS klein und synchron ueber Trigger statt Duplizierung von Hand.
+-- Full text search over artist, title, group, folder name and NFO content.
+-- content='releases' + content_rowid='id' mirrors the releases table,
+-- so FTS stays small and in sync through triggers instead of manual duplication.
 CREATE VIRTUAL TABLE IF NOT EXISTS releases_fts USING fts5(
     folder_name, artist, title, release_group, nfo_text,
     content='releases', content_rowid='id'
