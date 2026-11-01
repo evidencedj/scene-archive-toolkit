@@ -11,7 +11,8 @@ Version: siehe Datei `VERSION` und `CHANGELOG.md`.
 |---|---|
 | `processor/` | Incoming Processor: verarbeitet alles in `incoming/` (srrDB Abgleich, CRC Prüfung, Umbenennen, Sortieren) |
 | `archivedb/` | ArchiveDB: Suchoberfläche über das Archiv (SQLite, FastAPI, nur lesend) |
-| `tools/` | Migration vom alten Layout und Reparatur der Symlinks |
+| `tools/` | Migration vom alten Layout, Reparatur der Symlinks, Statistik (`archive_stats.py`) und Sortierer (`archive_sorter.py`) |
+| `pipeline/` | Nachtlauf `scene_nightly.sh`: Processor, Links, optionaler Mirror, Statistik, Sortierer, mit Sperre und Discord Bericht |
 | `docs/` | Umstieg von Version 2.2 und weitere Hinweise |
 
 ## Ordnerstruktur des Archivs (v3 Layout)
@@ -71,6 +72,7 @@ Voraussetzung: Docker mit Compose.
 ```bash
 git pull
 cd processor && docker compose build && cd ..
+# Nachtpipeline: siehe pipeline/README.md (keine Installation, nur pipeline.env anlegen)
 cd archivedb && docker compose up -d --build
 ```
 

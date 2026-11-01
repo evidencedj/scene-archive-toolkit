@@ -10,3 +10,6 @@ processor/logs/*
 *.db
 __pycache__/
 *.pyc
+processor/state/*
+!processor/state/.gitkeep
+pipeline/state/

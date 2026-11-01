@@ -3,6 +3,20 @@
 Das Toolkit folgt Semantic Versioning (Hauptversion.Nebenversion.Fehlerkorrektur).
 Die Einzelkomponenten haben zusätzlich ihre eigene Versionshistorie in den Dateiköpfen.
 
+## [1.1.0] 2026-11-01
+
+Nachtpipeline ergänzt (ohne Cloud und Hetzner Anbindung).
+
+- **Pipeline** (`pipeline/`): `scene_nightly.sh` 1.1.0 führt nacheinander Processor, Link Abgleich,
+  optionalen Mirror, Statistik und Sortierer aus. Mit Sperre (`flock`), Statusanzeige (`--status`),
+  `--only`, `--skip`, `--list`, `--dry-run`, Discord Zusammenfassung, optionalem Haken nach dem Lauf.
+  Dazu `run_incoming_processor.sh` 2.0.0 und `wait_for_processor.sh` 2.0.0 für Hand Läufe.
+  Einstellungen in `pipeline/pipeline.env`.
+- **Werkzeuge**: `archive_stats.py` 2.6, `archive_sorter.py` 2.1 und `genre_stats.py` 1.1 sind
+  über Umgebungsvariablen konfigurierbar und laufen im Processor Image.
+- **Processor Image** (Dockerfile 1.1, Compose 1.1): Build aus dem Toolkit Wurzelordner, enthält
+  `tools/`, neuer Ordner `processor/state` für den Genre Cache.
+
 ## [1.0.0] 2026-11-01
 
 Erste Ausgabe als eigenständiges Paket.

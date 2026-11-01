@@ -3,13 +3,17 @@
 # VERSIONSHISTORIE
 #   1.0  2026-11-01  Erste Fassung fuer das Toolkit. Einstellungen kommen aus
 #                    der Datei .env (Vorlage: .env.example).
+#   1.1  2026-11-01  Build Kontext ist die Toolkit Wurzel (Image enthaelt tools/).
+#                    Neuer Ordner STATE_PATH fuer den Genre Cache der Statistik.
 #
 # Ein Lauf:        docker compose run --rm processor
 # Nur Vorschau:    docker compose run --rm processor python incoming_processor.py --dry-run
 
 services:
   processor:
-    build: .
+    build:
+      context: ..
+      dockerfile: processor/Dockerfile
     image: scene-processor:local
     container_name: scene-processor
     # Kein Dauerbetrieb: der Container startet pro Lauf und beendet sich selbst.
@@ -26,3 +30,5 @@ services:
       - ${ARCHIVE_PATH:?ARCHIVE_PATH in .env setzen}:/archive
       # Protokolle jedes Laufs
       - ${LOG_PATH:-./logs}:/app/logs
+      # Zwischenspeicher der Genre Statistik (bleibt zwischen den Laeufen erhalten)
+      - ${STATE_PATH:-./state}:/app/state
