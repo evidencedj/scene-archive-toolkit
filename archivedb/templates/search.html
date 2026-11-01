@@ -1,0 +1,148 @@
+{#
+  search.html: Suchseite / Ergebnisliste
+
+  VERSIONSHISTORIE
+    1.0  Urspruengliche Suchseite mit Filtern, Sortierung, Pagination.
+    1.1  Added-Spalte, A-Z-Sprungleiste, Genre-Filter.
+    1.4  2026-10-08  Autofokus im Suchfeld beim Laden (nur mit feinem
+                     Zeiger, nicht auf Touch), vorhandener Suchtext wird
+                     markiert und beim Tippen ersetzt.
+    1.5  2026-10-21  Quelle-Filter (srrDB / ohne srrDB) und Badge "no srr"
+                     in der Trefferliste. Der Filter wird in allen Links
+                     (Sortierung, A-Z, Pagination) mitgefuehrt.
+-#}
+{% extends "base.html" %}
+{% block title %}Search — Scene Archive{% endblock %}
+
+{% block searchbar %}
+<form class="search-bar" method="get" action="/">
+  <div class="search-row-main">
+    <input type="text" name="q" value="{{ q }}" placeholder="Artist, title, group, NFO text ...">
+    <button type="submit">Search</button>
+  </div>
+  <div class="search-row-filters">
+  <select name="scope">
+    <option value="folder_name" {% if scope == "folder_name" %}selected{% endif %}>Folder name only</option>
+    <option value="all" {% if scope == "all" %}selected{% endif %}>Everywhere</option>
+    <option value="artist" {% if scope == "artist" %}selected{% endif %}>Artist only</option>
+    <option value="title" {% if scope == "title" %}selected{% endif %}>Title only</option>
+    <option value="release_group" {% if scope == "release_group" %}selected{% endif %}>Group only</option>
+    <option value="nfo_text" {% if scope == "nfo_text" %}selected{% endif %}>NFO text only</option>
+  </select>
+  <select name="year">
+    <option value="">Year</option>
+    {% for y in years %}
+      <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+    {% endfor %}
+  </select>
+  <select name="group">
+    <option value="">Group</option>
+    {% for g in groups %}
+      <option value="{{ g }}" {% if g == group %}selected{% endif %}>{{ g }}</option>
+    {% endfor %}
+  </select>
+  <select name="fmt">
+    <option value="">Format</option>
+    {% for f in formats %}
+      <option value="{{ f }}" {% if f == fmt %}selected{% endif %}>{{ f }}</option>
+    {% endfor %}
+  </select>
+  <select name="genre">
+    <option value="">Genre</option>
+    {% for key, label in genres %}
+      <option value="{{ key }}" {% if key == genre %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <select name="src">
+    <option value="">All sources</option>
+    <option value="srr" {% if src == "srr" %}selected{% endif %}>srrDB verified</option>
+    <option value="nosrr" {% if src == "nosrr" %}selected{% endif %}>no srrDB match</option>
+  </select>
+  <select name="page_size">
+    {% for n in page_size_options %}
+      <option value="{{ n }}" {% if n == page_size %}selected{% endif %}>{{ n }} per page</option>
+    {% endfor %}
+  </select>
+  </div>
+</form>
+{% endblock %}
+
+{% block content %}
+{% macro sort_link(field, label) %}
+  {% set new_order = "desc" if (sort == field and order == "asc") else "asc" %}
+  <a class="sort-link" href="/?q={{ q }}&scope={{ scope }}&year={{ year }}&group={{ group }}&fmt={{ fmt }}&genre={{ genre }}&src={{ src }}&page_size={{ page_size }}&sort={{ field }}&order={{ new_order }}">
+    {{ label }}{% if sort == field %}<span class="sort-arrow">{{ "▲" if order == "asc" else "▼" }}</span>{% endif %}
+  </a>
+{% endmacro %}
+
+<div class="result-count">{{ total }} release{{ "s" if total != 1 else "" }} found</div>
+
+<div class="alpha-nav">
+  {% for letter in alphabet_letters %}
+    {% if letter in alphabet %}
+      <a href="/?q={{ q }}&scope={{ scope }}&year={{ year }}&group={{ group }}&fmt={{ fmt }}&genre={{ genre }}&src={{ src }}&page_size={{ page_size }}&sort=name&order=asc&page={{ alphabet[letter].page }}#release-{{ alphabet[letter].release_id }}">{{ letter }}</a>
+    {% else %}
+      <span class="alpha-disabled">{{ letter }}</span>
+    {% endif %}
+  {% endfor %}
+</div>
+
+<table class="results">
+  <thead>
+    <tr>
+      <th class="col-num">#</th>
+      <th class="col-release">{{ sort_link("name", "Release") }}</th>
+      <th class="col-year">{{ sort_link("year", "Year") }}</th>
+      <th class="col-size">{{ sort_link("size", "Size") }}</th>
+      <th class="col-added">{{ sort_link("added", "Added") }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in results %}
+    <tr id="release-{{ r['id'] }}" onclick="window.location.href='/release/{{ r['id'] }}'" style="cursor:pointer">
+      <td class="col-num">{{ loop.index + (page - 1) * page_size }}</td>
+      <td class="col-release">
+        <a href="/release/{{ r['id'] }}">{{ r['folder_name'] }}</a>{% if r['status'] == 'scenereleases_nosrr' %} <span class="src-badge" title="no srrDB match">no srr</span>{% endif %}
+      </td>
+      <td class="col-year">{{ r['year'] or '—' }}</td>
+      <td class="col-size">{{ human_size(r['total_size']) }}</td>
+      <td class="col-added">{{ r['date_added'][:10] if r['date_added'] else '—' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5">No results.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="pagination">
+  {% set base_qs = "q=" ~ q ~ "&scope=" ~ scope ~ "&year=" ~ year ~ "&group=" ~ group ~ "&fmt=" ~ fmt ~ "&genre=" ~ genre ~ "&src=" ~ src ~ "&sort=" ~ sort ~ "&order=" ~ order ~ "&page_size=" ~ page_size %}
+  {% if page > 1 %}
+    <a href="/?{{ base_qs }}&page={{ page - 1 }}">&larr; Previous</a>
+  {% endif %}
+  {% for p in page_list %}
+    {% if p == "…" %}
+      <span class="page-ellipsis">…</span>
+    {% elif p == page %}
+      <span class="page-current">{{ p }}</span>
+    {% else %}
+      <a href="/?{{ base_qs }}&page={{ p }}">{{ p }}</a>
+    {% endif %}
+  {% endfor %}
+  {% if has_more %}
+    <a href="/?{{ base_qs }}&page={{ page + 1 }}">Next &rarr;</a>
+  {% endif %}
+</div>
+
+<script>
+// Cursor landet beim Laden im Suchfeld, vorhandener Text ist markiert.
+// preventScroll erhaelt den A-Z-Sprung (#release-ID). Auf Touch-Geraeten
+// kein Autofokus, damit nicht die Bildschirmtastatur aufklappt.
+document.addEventListener('DOMContentLoaded', function () {
+  if (!window.matchMedia('(pointer: fine)').matches) return;
+  var input = document.querySelector('input[name="q"]');
+  if (!input) return;
+  input.focus({ preventScroll: true });
+  input.select();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}{{ release['folder_name'] }}{% endblock %}
+
+{% block content %}
+<a class="back-link" href="javascript:history.back()">&larr; Back to search</a>
+
+<div class="release-header">
+  <h2 class="release-title">{{ release['folder_name'] }}</h2>
+
+  <dl class="info-grid">
+    <dt>Artist</dt><dd>{{ release['artist'] or '—' }}</dd>
+    <dt>Title</dt><dd>{{ release['title'] or '—' }}</dd>
+    <dt>Format</dt><dd>{{ display_format }}</dd>
+    <dt>Genre</dt><dd>{% if release['genre_key'] %}<a href="/?genre={{ release['genre_key']|urlencode }}">{{ release['genre'] }}</a>{% else %}—{% endif %}</dd>
+    <dt>Year</dt><dd>{{ release['year'] or '—' }}</dd>
+    <dt>Release Group</dt><dd>{{ release['release_group'] or '—' }}</dd>
+    <dt>Added</dt><dd>{{ release['date_added'][:10] if release['date_added'] else '—' }}</dd>
+    <dt>Files in Folder</dt><dd>{{ total_file_count }}</dd>
+    <dt>Media Files</dt><dd>{{ release['track_count'] }}</dd>
+    <dt>Size</dt><dd>{{ human_size(release['total_size']) }}</dd>
+  </dl>
+
+  <div style="margin-top:14px">
+    <button id="srrdb-btn" class="srrdb-btn" onclick="checkSrrdb({{ release['id'] }})">Check on srrDB</button>
+    {% if unc_path %}
+    <button id="unc-btn" class="srrdb-btn" onclick="copyUncPath()">📋 Copy folder path</button>
+    <a class="srrdb-btn" style="display:inline-block; text-decoration:none;" href="{{ file_uri }}">Open in Explorer</a>
+    {% endif %}
+    {% if box_url %}
+    <a class="srrdb-btn" style="display:inline-block; text-decoration:none;" href="{{ box_url }}" target="_blank" rel="noopener">Open in Storagebox</a>
+    {% endif %}
+    <div id="srrdb-result" class="srrdb-result" style="display:none"></div>
+    <div id="unc-result" class="srrdb-result" style="display:none"></div>
+  </div>
+</div>
+
+{% if metadata_files %}
+<h3 class="section-title">Metadata</h3>
+<table class="files">
+  <thead>
+    <tr>
+      <th class="num-col">#</th>
+      <th>File</th>
+      <th class="size-col">Size</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in metadata_files %}
+    <tr>
+      <td data-label="#" class="num-col">{{ loop.index }}</td>
+      <td data-label="File" class="file-col">{{ f['relpath'] }}</td>
+      <td data-label="Size" class="size-col">{{ human_size(f['size']) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if media_files %}
+<h3 class="section-title">Media Files ({{ media_files|length }})</h3>
+<table class="files">
+  <thead>
+    <tr>
+      <th class="num-col">#</th>
+      <th>File</th>
+      <th class="size-col">Size</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in media_files %}
+    <tr>
+      <td data-label="#" class="num-col">{{ loop.index }}</td>
+      <td data-label="File" class="file-col">{{ f['relpath'] }}</td>
+      <td data-label="Size" class="size-col">{{ human_size(f['size']) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if metadata_files or media_files %}
+<div class="files-total">
+  <span>Total ({{ total_file_count }} file{{ "s" if total_file_count != 1 else "" }})</span>
+  <strong>{{ human_size(release['total_size']) }}</strong>
+</div>
+{% endif %}
+
+{% if release['nfo_text'] %}
+<h3 class="section-title">NFO</h3>
+<pre class="nfo-view">{{ release['nfo_text'] }}</pre>
+{% endif %}
+
+<script>
+function fallbackCopy(text) {
+  // navigator.clipboard needs a "secure context" (HTTPS or
+  // localhost) and simply isn't available over plain HTTP on the
+  // LAN — this older technique works everywhere instead.
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch (e) {
+    ok = false;
+  }
+  document.body.removeChild(ta);
+  return ok;
+}
+
+async function copyUncPath() {
+  const path = {{ unc_path | tojson }};
+  const box = document.getElementById('unc-result');
+  box.style.display = 'block';
+
+  let copied = false;
+  if (window.isSecureContext && navigator.clipboard) {
+    try {
+      await navigator.clipboard.writeText(path);
+      copied = true;
+    } catch (e) {
+      copied = false;
+    }
+  }
+  if (!copied) {
+    copied = fallbackCopy(path);
+  }
+
+  if (copied) {
+    box.className = 'srrdb-result srrdb-found';
+    box.innerHTML = `Copied: <code>${path}</code><br><span style="color:var(--text-dim)">Paste into Explorer's address bar, or press Win+R.</span>`;
+  } else {
+    box.className = 'srrdb-result srrdb-notfound';
+    box.innerHTML = `Copy failed. Copy the path by hand:<br><code>${path}</code>`;
+  }
+}
+
+async function checkSrrdb(releaseId) {
+  const btn = document.getElementById('srrdb-btn');
+  const box = document.getElementById('srrdb-result');
+  btn.disabled = true;
+  btn.textContent = 'Checking ...';
+  box.style.display = 'block';
+  box.className = 'srrdb-result';
+  box.textContent = 'Asking srrDB ...';
+  try {
+    const r = await fetch(`/release/${releaseId}/srrdb`, {method: 'POST'});
+    const data = await r.json();
+    if (!data.found) {
+      box.className = 'srrdb-result srrdb-notfound';
+      box.innerHTML = 'Not found on srrDB (neither exact match nor via search).';
+    } else {
+      box.className = 'srrdb-result srrdb-found';
+      let html = `<strong>Found${data.exact_match ? '' : ' (via search, name differs)'}:</strong> `;
+      html += `<a href="${data.srrdb_url}" target="_blank" rel="noopener">${data.canonical_name}</a><br>`;
+      html += `${data.file_count} file(s) officially on record`;
+      if (!data.exact_match) {
+        html += `<br><span style="color:var(--text-dim)">Local folder name differs from the official name.</span>`;
+      }
+      box.innerHTML = html;
+    }
+  } catch (e) {
+    box.className = 'srrdb-result srrdb-notfound';
+    box.textContent = 'Request failed: ' + e;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Check again';
+  }
+}
+</script>
+{% endblock %}

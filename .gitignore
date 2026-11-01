@@ -1,0 +1,12 @@
+# Geheimnisse und lokale Konfiguration
+.env
+*.env
+!.env.example
+
+# Laufzeitdaten
+processor/logs/*
+!processor/logs/.gitkeep
+*.log
+*.db
+__pycache__/
+*.pyc

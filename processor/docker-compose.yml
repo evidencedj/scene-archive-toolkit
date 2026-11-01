@@ -1,0 +1,28 @@
+# Incoming Processor docker-compose.yml
+#
+# VERSIONSHISTORIE
+#   1.0  2026-11-01  Erste Fassung fuer das Toolkit. Einstellungen kommen aus
+#                    der Datei .env (Vorlage: .env.example).
+#
+# Ein Lauf:        docker compose run --rm processor
+# Nur Vorschau:    docker compose run --rm processor python incoming_processor.py --dry-run
+
+services:
+  processor:
+    build: .
+    image: scene-processor:local
+    container_name: scene-processor
+    # Kein Dauerbetrieb: der Container startet pro Lauf und beendet sich selbst.
+    restart: "no"
+    environment:
+      - DRY_RUN=${DRY_RUN:-0}
+      - REQUEST_DELAY=${REQUEST_DELAY:-1.0}
+      - VPN_PROXY_URL=${VPN_PROXY_URL:-}
+      - ARCHIVEDB_URL=${ARCHIVEDB_URL:-}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      - DISCORD_SKIP_EMPTY_RUNS=${DISCORD_SKIP_EMPTY_RUNS:-1}
+    volumes:
+      # Dein Archiv Wurzelordner, LOKAL eingebunden (Symlinks gehen nicht ueber SMB).
+      - ${ARCHIVE_PATH:?ARCHIVE_PATH in .env setzen}:/archive
+      # Protokolle jedes Laufs
+      - ${LOG_PATH:-./logs}:/app/logs

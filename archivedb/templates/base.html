@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Scene Archive{% endblock %}</title>
+<style>
+  :root {
+    --bg: #14161a;
+    --panel: #1c1f26;
+    --border: #2c3038;
+    --text: #e4e6eb;
+    --text-dim: #9aa0ab;
+    --accent: #4fb0e0;
+    --accent-hover: #6fc4f0;
+    --tag-bg: #232833;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+  header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  header h1 {
+    margin: 0 0 12px 0;
+    font-size: 20px;
+  }
+  header h1 a { color: var(--text); }
+  header .topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+  header .topbar h1 { margin-bottom: 12px; }
+  header nav a { font-size: 14px; margin-left: 14px; }
+
+  /* Statistik-Seite */
+  .stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 8px; }
+  .stat-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .stat-card .num { font-size: 22px; font-weight: 600; }
+  .stat-card .lbl { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 0 28px; }
+  .bar-row { display: grid; grid-template-columns: 130px 1fr 54px; align-items: center; gap: 10px;
+             padding: 3px 0; font-size: 14px; color: var(--text); }
+  .bar-row:hover { text-decoration: none; background: var(--panel); }
+  .bar-row .bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-row .bar-track { height: 10px; background: var(--tag-bg); border-radius: 5px; overflow: hidden; }
+  .bar-row .bar-fill { display: block; height: 100%; min-width: 2px; background: var(--accent); border-radius: 5px; }
+  .bar-row .bar-num { text-align: right; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .timeline { display: flex; align-items: flex-end; gap: 2px; height: 120px; margin-top: 8px; }
+  .timeline a { flex: 1 1 0; min-width: 2px; background: var(--accent); border-radius: 2px 2px 0 0; opacity: 0.85; }
+  .timeline a:hover { opacity: 1; background: var(--accent-hover); }
+  .timeline-axis { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px 24px 60px;
+  }
+
+  .search-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .search-row-main {
+    display: flex;
+    gap: 8px;
+  }
+  .search-row-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .search-bar input[type="text"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 10px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+  }
+  .search-bar select {
+    padding: 10px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+  }
+  .search-bar button {
+    flex: 0 0 auto;
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    background: var(--accent);
+    color: #0b0d10;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 15px;
+  }
+  .search-bar button:hover { background: var(--accent-hover); }
+
+  .result-count {
+    margin: 16px 0 8px;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+
+  /* Results table (desktop) / compact list (mobile via media query below) */
+  table.results {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+  }
+  table.results th {
+    text-align: left;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-dim);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  table.results th a.sort-link {
+    color: var(--text-dim);
+    text-decoration: none;
+  }
+  table.results th a.sort-link:hover { color: var(--text); text-decoration: none; }
+  .sort-arrow { margin-left: 4px; color: var(--accent); font-size: 10px; }
+  table.results td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+    font-size: 14px;
+  }
+  table.results tr:hover { background: var(--panel); }
+
+  .col-release {
+    font-family: monospace;
+    font-size: 13px;
+    word-break: break-word;
+  }
+  .col-release a { color: var(--accent); font-weight: 500; }
+  .col-release a:hover { color: var(--accent-hover); }
+  .col-year, th.col-year { width: 70px; white-space: nowrap; }
+  .col-num, th.col-num { width: 44px; white-space: nowrap; color: var(--text-dim); }
+  .col-size, th.col-size { width: 100px; white-space: nowrap; text-align: right; color: var(--text-dim); }
+  th.col-size { text-align: right; }
+  .col-added, th.col-added { width: 100px; white-space: nowrap; text-align: right; color: var(--text-dim); }
+  th.col-added { text-align: right; }
+
+  .alpha-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 10px 0 16px;
+  }
+  .alpha-nav a, .alpha-nav span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 2px;
+    font-size: 12.5px;
+    border-radius: 4px;
+    text-decoration: none;
+  }
+  .alpha-nav a {
+    color: var(--accent);
+    background: var(--surface-2, rgba(255,255,255,0.04));
+  }
+  .alpha-nav a:hover {
+    color: var(--accent-hover);
+    background: var(--surface-3, rgba(255,255,255,0.08));
+  }
+  .alpha-nav .alpha-disabled {
+    color: var(--text-dim);
+    opacity: 0.35;
+  }
+  table.results tbody tr {
+    scroll-margin-top: 16px;
+  }
+
+  .tag {
+    display: inline-block;
+    background: var(--tag-bg);
+    color: var(--text-dim);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-right: 4px;
+  }
+  .cover-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .pagination {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+  .pagination a { padding: 4px 8px; border-radius: 4px; }
+  .pagination a:hover { background: var(--panel); text-decoration: none; }
+  .page-current {
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: var(--accent);
+    color: #0b0d10;
+    font-weight: 600;
+  }
+  .page-ellipsis { color: var(--text-dim); }
+
+  .release-header {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .release-header .release-title {
+    margin: 0 0 6px 0;
+    font-size: 19px;
+    font-family: monospace;
+    word-break: break-all;
+    color: var(--text);
+  }
+  .info-grid {
+    margin: 14px 0 0 0;
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    column-gap: 16px;
+    row-gap: 6px;
+    font-size: 14px;
+  }
+  .info-grid dt {
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+  .info-grid dd {
+    margin: 0;
+    color: var(--text);
+    font-weight: 600;
+  }
+  .section-title {
+    margin: 28px 0 8px 0;
+    font-size: 15px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .srrdb-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .srrdb-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .srrdb-btn:disabled { opacity: 0.6; cursor: default; }
+  .srrdb-result {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 13.5px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+  }
+  .srrdb-result.srrdb-found { border-color: #2f6b3a; }
+  .srrdb-result.srrdb-notfound { border-color: #6b2f2f; color: var(--text-dim); }
+
+  table.files {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  table.files th {
+    text-align: left;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  table.files th.size-col { text-align: right; }
+  table.files td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    font-family: monospace;
+    font-size: 13.5px;
+  }
+  .size-col { text-align: right; color: var(--text-dim); white-space: nowrap; }
+  .num-col { width: 40px; color: var(--text-dim); white-space: nowrap; }
+  .files-total {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 10px;
+    font-size: 13px;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+  }
+  .files-total strong { color: var(--text); font-family: monospace; }
+
+  @font-face {
+    font-family: "DejaVuSansMonoNFO";
+    src: url("/static/fonts/DejaVuSansMono.ttf") format("truetype");
+    font-display: swap;
+  }
+
+  .nfo-view {
+    background: #000;
+    color: #d8d8d8;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Mobile browsers can auto-boost text size inside pre/code-like
+       blocks for readability, which can visually reflow monospace
+       ASCII art even though white-space:pre forbids wrapping. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    word-break: normal;
+    overflow-wrap: normal;
+    /* DejaVu Sans Mono first, bundled as a real webfont (see
+       @font-face above) — same font file used for the server-side
+       image renderer that was tried and dropped, confirmed by direct
+       measurement to have genuinely, perfectly uniform character
+       widths (unlike the earlier "Perfect DOS VGA 437" TTF, which
+       was just a bad third-party conversion). Bundling it ourselves
+       means every device gets the exact same, verified-good font
+       instead of depending on what's installed system-wide — Lucida
+       Console and the generic "monospace" keyword stay as fallbacks
+       for the rare case the webfont fails to load at all. */
+    font-family: "DejaVuSansMonoNFO", "Lucida Console", monospace;
+    font-size: 14px;
+    line-height: 1;      /* exact 1 — any more tears the vertical box-drawing connectors (│) apart between lines */
+    font-kerning: none;
+    font-variant-ligatures: none;
+    white-space: pre;    /* never wrap NFO art — that would destroy the alignment */
+    letter-spacing: 0;
+  }
+
+  .back-link { display: inline-block; margin-bottom: 16px; }
+
+  /* --- Mobile layout (Smartphone) --- */
+  @media (max-width: 720px) {
+    main { padding: 14px 14px 50px; }
+    header { padding: 12px 14px; }
+
+    table.results thead { display: none; }
+    table.results, table.results tbody {
+      display: block;
+      width: 100%;
+    }
+    table.results tr {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      column-gap: 8px;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 2px;
+    }
+    table.results td {
+      border: none;
+      padding: 0;
+      font-size: 14px;
+    }
+    table.results td.col-release {
+      flex: 1 1 100%;
+      order: 1;
+      margin-bottom: 2px;
+    }
+    table.results td.col-year {
+      order: 2;
+      width: auto;
+      color: var(--text-dim);
+      font-size: 12.5px;
+    }
+    table.results td.col-size {
+      order: 3;
+      width: auto;
+      text-align: left;
+      color: var(--text-dim);
+      font-size: 12.5px;
+    }
+    table.results td.col-added {
+      order: 4;
+      width: auto;
+      text-align: left;
+      color: var(--text-dim);
+      font-size: 12.5px;
+    }
+    table.results td.col-year::after {
+      content: "·";
+      margin-left: 8px;
+      color: var(--border);
+    }
+    table.results td.col-size::after {
+      content: "·";
+      margin-left: 8px;
+      color: var(--border);
+    }
+
+    table.files thead { display: none; }
+    table.files, table.files tbody, table.files tr, table.files td {
+      display: block;
+      width: 100%;
+    }
+    table.files tr {
+      border-bottom: 1px solid var(--border);
+      padding: 8px 0;
+    }
+    table.files td { border: none; padding: 1px 0; }
+    table.files .size-col { text-align: left; }
+    table.files td.num-col {
+      display: inline;
+      margin-right: 6px;
+    }
+    table.files td.file-col {
+      display: inline;
+    }
+  }
+.src-badge { font-size: 0.7em; padding: 1px 6px; border: 1px solid currentColor; border-radius: 3px; opacity: .75; white-space: nowrap; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="topbar">
+    <h1><a href="/">Scene Archive</a></h1>
+    <nav><a href="/">Search</a><a href="/stats">Statistics</a></nav>
+  </div>
+  {% block searchbar %}{% endblock %}
+</header>
+<main>
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

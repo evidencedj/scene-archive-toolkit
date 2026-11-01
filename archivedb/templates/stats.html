@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Statistics — Scene Archive{% endblock %}
+
+{% macro bars(rows) %}
+  {% for r in rows %}
+  <a class="bar-row" href="{{ r.href }}">
+    <span class="bar-label" title="{{ r.label }}">{{ r.label }}</span>
+    <span class="bar-track"><span class="bar-fill" style="width: {{ r.pct }}%"></span></span>
+    <span class="bar-num">{{ r.count }}</span>
+  </a>
+  {% else %}
+  <div class="result-count">No data yet.</div>
+  {% endfor %}
+{% endmacro %}
+
+{% block content %}
+<div class="stat-cards">
+  <div class="stat-card"><div class="num">{{ totals.releases }}</div><div class="lbl">Releases</div></div>
+  <a class="stat-card" href="/?src=srr"><div class="num">{{ totals.srr }}</div><div class="lbl">srrDB verified</div></a>
+  <a class="stat-card" href="/?src=nosrr"><div class="num">{{ totals.nosrr }}</div><div class="lbl">No srrDB match</div></a>
+  <div class="stat-card"><div class="num">{{ totals.tracks }}</div><div class="lbl">Media files</div></div>
+  <div class="stat-card"><div class="num">{{ totals.size }}</div><div class="lbl">Total size</div></div>
+  <div class="stat-card"><div class="num">{{ totals.groups }}</div><div class="lbl">Groups</div></div>
+  <div class="stat-card"><div class="num">{{ totals.with_genre }}</div><div class="lbl">With genre tag</div></div>
+</div>
+
+<h3 class="section-title">Releases per year</h3>
+{% if timeline %}
+<div class="timeline">
+  {% for r in timeline %}
+  <a href="{{ r.href }}" style="height: {{ r.pct }}%" title="{{ r.label }}: {{ r.count }}"></a>
+  {% endfor %}
+</div>
+<div class="timeline-axis"><span>{{ timeline[0].label }}</span><span>{{ timeline[-1].label }}</span></div>
+{% endif %}
+{% if totals.no_year %}<div class="result-count">{{ totals.no_year }} release(s) without a detectable year.</div>{% endif %}
+
+<div class="stat-grid">
+  <div>
+    <h3 class="section-title">Top 20 genres (ID3, main genre per release)</h3>
+    {{ bars(genres) }}
+    <div class="result-count">{{ totals.with_genre }} of {{ totals.releases }} releases carry a genre tag.</div>
+  </div>
+  <div>
+    <h3 class="section-title">By format</h3>
+    {{ bars(formats) }}
+  </div>
+  <div>
+    <h3 class="section-title">Top 15 years</h3>
+    {{ bars(years_top) }}
+  </div>
+  <div>
+    <h3 class="section-title">Top 25 groups</h3>
+    {{ bars(groups) }}
+  </div>
+  <div>
+    <h3 class="section-title">Added per month (last 12)</h3>
+    {{ bars(added) }}
+  </div>
+</div>
+{% endblock %}
