@@ -51,6 +51,9 @@ VERSION HISTORY
                    more. If empty, "Open in Explorer" and "Copy folder path"
                    are hidden on the detail page. FILES_FOLDER now defaults to
                    "scenereleases_srr". No database change.
+  1.10 2026-11-06  Search page: "srrDB" button next to "Search" (search.html
+                   1.6), looks up the entered term on srrDB in a new tab.
+                   No code change.
 """
 
 import os

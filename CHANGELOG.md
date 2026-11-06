@@ -3,6 +3,14 @@
 The toolkit follows Semantic Versioning (major.minor.patch). The individual components also keep
 their own version history in the file headers.
 
+## [1.3.0] 2026-11-06
+
+- **ArchiveDB** (app 1.10, search.html 1.6): new "srrDB" button next to "Search". It opens the srrDB
+  search with the same term in a new tab (keyboard: Ctrl+Enter, on a Mac Cmd+Enter). Enter still
+  searches your own archive. Rebuild the image to get it (`docker compose up -d --build`).
+- **Pipeline:** `scene_nightly.sh`, `run_incoming_processor.sh` and `wait_for_processor.sh` are
+  executable again after a fresh clone (the executable bit had been lost in 1.1.0 and 1.2.0).
+
 ## [1.2.0] 2026-11-01
 
 Everything is in English now, so the toolkit can be shared with other people.

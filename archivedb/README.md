@@ -10,6 +10,9 @@ ArchiveDB only reads and changes nothing. It indexes two folders below your arch
 (clean releases without an srrDB match). The folder `scenereleases` with the symlinks is deliberately
 not read, so no release appears twice. In the search, the filter "Source" separates the two groups.
 
+Next to "Search" there is an "srrDB" button: it opens the srrDB search with the same term in a new
+tab (keyboard: Ctrl+Enter, on a Mac Cmd+Enter). Handy if a release is not in your archive yet.
+
 The archive must be reachable as a directory for the container (a local path or a mounted network
 drive, read only is enough).
 

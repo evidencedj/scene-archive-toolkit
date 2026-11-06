@@ -10,15 +10,32 @@
     1.5  2026-10-21  Source filter (srrDB / without srrDB) and "no srr" badge
                      in the result list. The filter is carried in all links
                      (sorting, A-Z, pagination).
+    1.6  2026-11-06  "srrDB" button next to "Search": opens the srrDB search
+                     with the term from the search box in a new tab
+                     (https://www.srrdb.com/browse/<term>/1). Empty box: only
+                     the cursor jumps into the search box. Enter still
+                     searches locally, Ctrl+Enter (Mac: Cmd+Enter) searches
+                     on srrDB.
 -#}
 {% extends "base.html" %}
 {% block title %}Search — Scene Archive{% endblock %}
 
 {% block searchbar %}
+<style>
+  /* srrDB button: secondary next to "Search", therefore outlined only */
+  .search-bar button.btn-secondary {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    font-weight: 600;
+  }
+  .search-bar button.btn-secondary:hover { background: var(--tag-bg); }
+</style>
 <form class="search-bar" method="get" action="/">
   <div class="search-row-main">
     <input type="text" name="q" value="{{ q }}" placeholder="Artist, title, group, NFO text ...">
     <button type="submit">Search</button>
+    <button type="button" id="srrdb-search-btn" class="btn-secondary" title="Search this term on srrDB (new tab, Ctrl+Enter)">srrDB &#8599;</button>
   </div>
   <div class="search-row-filters">
   <select name="scope">
@@ -137,6 +154,22 @@
 // On load the cursor goes into the search box, existing text is selected.
 // preventScroll keeps the A-Z jump (#release-ID) working. No autofocus on
 // touch devices, so the on-screen keyboard does not pop up.
+// srrDB search: look up the term from the search box on srrDB in a new tab.
+var SRRDB_SEARCH_URL = 'https://www.srrdb.com/browse/';
+function srrdbSearch() {
+  var input = document.querySelector('input[name="q"]');
+  var term = input ? input.value.trim() : '';
+  if (!term) { if (input) input.focus(); return; }
+  window.open(SRRDB_SEARCH_URL + encodeURIComponent(term) + '/1', '_blank', 'noopener');
+}
+document.addEventListener('DOMContentLoaded', function () {
+  var btn = document.getElementById('srrdb-search-btn');
+  if (btn) btn.addEventListener('click', srrdbSearch);
+  var field = document.querySelector('input[name="q"]');
+  if (field) field.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); srrdbSearch(); }
+  });
+});
 document.addEventListener('DOMContentLoaded', function () {
   if (!window.matchMedia('(pointer: fine)').matches) return;
   var input = document.querySelector('input[name="q"]');
