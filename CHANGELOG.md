@@ -3,6 +3,18 @@
 The toolkit follows Semantic Versioning (major.minor.patch). The individual components also keep
 their own version history in the file headers.
 
+## [1.4.0] 2026-11-12
+
+- **Incoming Processor 3.4:**
+  - **Bugfix:** Stage 3 (ID3/NFO search) crashed with `ValueError: not enough values to unpack
+    (expected 4, got 3)` when the release folder itself held no `.mp3`/`.flac` (audio in a subfolder
+    such as `CD1/`, or no audio at all). The release is now processed normally.
+  - Releases with a scene-like name but **no SFV and no srrDB match** that do contain audio files
+    (typical: WEB bootlegs and mixtapes) now go to `mp3s` instead of being left in `incoming`.
+  - Folders with **metadata only** (NFO/SFV/M3U/JPG, no audio) are labelled "metadata only" in the
+    log. With an srrDB match they go to `incomplete` as before, without a match they stay in
+    `incoming` (the log no longer calls them "Empty folder").
+
 ## [1.3.0] 2026-11-06
 
 - **ArchiveDB** (app 1.10, search.html 1.6): new "srrDB" button next to "Search". It opens the srrDB

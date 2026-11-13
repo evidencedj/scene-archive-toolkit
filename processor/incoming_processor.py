@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-incoming_processor.py  v3.2
+incoming_processor.py  v3.4
 
 VERSION HISTORY (bump on every change so you always know what's current):
   v1.0  Initial multi-stage matching pipeline (Stage 1-3), portable config.
@@ -604,6 +604,23 @@ VERSION HISTORY (bump on every change so you always know what's current):
         points to tools/migrate_to_v3_layout.py (the old text named a
         script that does not exist). No change in behaviour.
 
+  v3.4  BUGFIX: extract_from_id3() returned only 3 values when the release
+        folder itself holds no .mp3/.flac (audio in a subfolder such as
+        CD1/, or no audio at all), while Stage 3 unpacks 4 (album, year,
+        group, artist). The release crashed with "ValueError: not enough
+        values to unpack (expected 4, got 3)". Now returns 4 values, Stage 3
+        simply finds no tags and moves on.
+        Less clutter in incoming:
+          - Scene-like name, NO SFV, NO srrDB match, but media files present
+            (typical: p2p/WEB bootlegs and mixtapes) now go to mp3s instead
+            of being left in incoming. Result code MP3S_SCENE_NAME.
+          - Metadata-only folders (NFO/SFV/M3U/JPG, no media files) are now
+            recognised and logged as "metadata only". With an srrDB match
+            they go to incomplete as before (the SFV lists the missing audio
+            files), the log now says so clearly. Without a match they stay
+            in incoming, labelled "metadata only" instead of "Empty folder".
+          - A truly empty folder is still left in incoming.
+
 Processes all folders inside INCOMING_DIR using a multi-stage pipeline:
 
   Stage 0  — Exact folder name match against srrDB
@@ -616,7 +633,8 @@ Processes all folders inside INCOMING_DIR using a multi-stage pipeline:
   → On srrDB match: full Scene workflow (metadata CRC, SRR if needed, media CRC, rename)
   → No match + SFV + Scene-like name  → scenereleases_nosrr / incomplete
   → No match + SFV + no Scene name    → scenereleases_nosrr / incomplete
-  → No match + no SFV + Scene name    → left in incoming (manual review)
+  → No match + no SFV + Scene name + media files → mp3s (since v3.4)
+  → No match + no SFV + only metadata  → left in incoming (manual review)
   → Only mp3s, no SFV, no Scene name  → mp3s
 
 Set DRY_RUN = True to preview without moving/renaming anything.
@@ -710,7 +728,7 @@ def _env_flag(name, default=False):
 DRY_RUN       = _env_flag("DRY_RUN") or ("--dry-run" in sys.argv)   # True = preview only
 REQUEST_DELAY = float(os.environ.get("REQUEST_DELAY", "1.0"))       # seconds between srrDB API calls
 
-SCRIPT_VERSION = "3.3"  # ← single source of truth for the startup banner;
+SCRIPT_VERSION = "3.4"  # ← single source of truth for the startup banner;
                           #   bump this alongside the version-history entry
                           #   at the top of the file so they can never drift
                           #   apart again (see v2.19 below)
@@ -1425,7 +1443,7 @@ def extract_from_id3(folder):
     media = sorted(f for f in os.listdir(folder)
                    if f.lower().endswith(('.mp3', '.flac')))
     if not media:
-        return None, None, None
+        return None, None, None, None   # v3.4: 4 values like the normal return
 
     first = media[0]
     album = year = group = artist = None
@@ -2310,6 +2328,19 @@ def heal_stray_tmp_renames(folder):
     return healed
 
 
+def _media_count(folder):
+    """v3.4: number of media files below the folder."""
+    return scan_release_folder(folder)[1]
+
+
+def folder_has_files(folder):
+    """v3.4: True if the folder contains at least one regular file anywhere below it."""
+    for _, _, files in os.walk(folder):
+        if files:
+            return True
+    return False
+
+
 def scan_release_folder(folder):
     """
     Single os.walk pass collecting everything process_folder needs:
@@ -2655,7 +2686,8 @@ def run_scene_workflow(folder_path, folder_name, canonical):
             return "SCENE"
         log(f"  SFV NOT FOUND → incomplete")
         stats["incomplete"] += 1
-        record_result(folder_name, "INCOMPLETE", canonical, "sfv_not_found")
+        record_result(folder_name, "INCOMPLETE", canonical,
+                      "sfv_not_found" + ("; metadata only, no audio files" if _media_count(folder) == 0 else ""))
         move_release(folder, INCOMPLETE_DIR, release)
         return "INCOMPLETE"
 
@@ -2668,10 +2700,14 @@ def run_scene_workflow(folder_path, folder_name, canonical):
     crc_ok, crc_failures = crc_check(folder, sfv, crc_cache)
 
     if not crc_ok:
-        log(f"  CRC FAILED → incomplete")
+        if _media_count(folder) == 0:
+            log(f"  METADATA ONLY (srrDB match, no audio files) → incomplete")
+            detail = "metadata only, no audio files; " + _failures_detail(crc_failures)
+        else:
+            log(f"  CRC FAILED → incomplete")
+            detail = _failures_detail(crc_failures)
         stats["incomplete"] += 1
-        record_result(folder_name, "INCOMPLETE", canonical,
-                      _failures_detail(crc_failures))
+        record_result(folder_name, "INCOMPLETE", canonical, detail)
         move_release(folder, INCOMPLETE_DIR, release)
         return "INCOMPLETE"
 
@@ -2698,6 +2734,7 @@ RESULT_DESTINATIONS = {
     "NOSCENE_OK":         "scenereleases_nosrr",
     "NOSCENE_FAIL":       "incomplete",
     "MP3S":               "mp3s",
+    "MP3S_SCENE_NAME":    "mp3s",
     "LEFT_ALONE":         "incoming (left in place)",
 }
 
@@ -2732,6 +2769,10 @@ def process_folder(folder_path, folder_name):
     sfv_files, media_cnt, raw_stems = scan_release_folder(folder_path)
     has_sfv    = bool(sfv_files)
     scene_like = has_scene_name(folder_name)
+    meta_only  = media_cnt == 0 and folder_has_files(folder_path)
+    if meta_only:
+        log(f"  METADATA ONLY: no media files in this folder "
+            f"(srrDB match -> incomplete, no match -> left in incoming)")
 
     # ── Stage 0: Exact folder name match against srrDB ───────────────────
     log(f"  Stage 0 — exact folder name search")
@@ -2822,11 +2863,19 @@ def process_folder(folder_path, folder_name):
                               details="no srrDB match; not scene-like; SFV CRC failed; " + _failures_detail(crc_failures))
                 move_release(folder_path, INCOMPLETE_DIR, folder_name)
 
-    elif scene_like:
-        log(f"  Scene-like name, no SFV, no srrDB match → left in incoming")
+    elif scene_like and media_cnt > 0:
+        log(f"  Scene-like name, no SFV, no srrDB match, {media_cnt} media file(s) → mp3s")
+        stats["mp3s"] += 1
+        record_result(folder_name, "MP3S_SCENE_NAME",
+                      details=f"scene-like name but no SFV and no srrDB match, "
+                              f"{media_cnt} media file(s)")
+        move_release(folder_path, MP3S_DIR, folder_name)
+
+    elif meta_only:
+        log(f"  Metadata only, no srrDB match → left in incoming")
         stats["left_alone"] += 1
         record_result(folder_name, "LEFT_ALONE",
-                      details="scene-like name but no SFV and no srrDB match — manual review")
+                      details="metadata only (no media files), no srrDB match — manual review")
 
     elif media_cnt > 0:
         log(f"  No SFV, no Scene name, {media_cnt} media file(s) → mp3s")
